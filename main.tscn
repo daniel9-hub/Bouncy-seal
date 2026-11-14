@@ -1,22 +1,74 @@
 [gd_scene format=3 uid="uid://dawu05n1wsxql"]
 
-[ext_resource type="Texture2D" uid="uid://crwx2dd7hugix" path="res://icon.svg" id="1_ig7tw"]
-[ext_resource type="PackedScene" uid="uid://ckfje4owjvbdv" path="res://player.tscn" id="2_0xm2m"]
+[ext_resource type="Script" uid="uid://cadlfhhy7md5w" path="res://main.gd" id="1_main"]
+[ext_resource type="Texture2D" uid="uid://diyt1pvsdvlaj" path="res://assets/free-winter-nature-pixel-game-backgrounds/1/2.png" id="2_bg"]
+[ext_resource type="PackedScene" uid="uid://ckfje4owjvbdv" path="res://player.tscn" id="3_player"]
+[ext_resource type="Script" uid="uid://bws31vf44w6b6" path="res://level_generator.gd" id="4_level"]
 
-[node name="Node2D" type="Node2D" unique_id=1017836923]
+[node name="Main" type="Node2D" unique_id=885881709]
+script = ExtResource("1_main")
 
-[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=2017722734]
+[node name="Background" type="CanvasLayer" parent="." unique_id=2030237277]
+layer = -10
 
-[node name="Sprite2D" type="Sprite2D" parent="StaticBody2D" unique_id=507675727]
-position = Vector2(-75.599976, 251.4)
-scale = Vector2(11.1171875, 1)
-texture = ExtResource("1_ig7tw")
+[node name="SkyColor" type="ColorRect" parent="Background" unique_id=1153931389]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.69, 0.8, 0.89, 1)
 
-[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="StaticBody2D" unique_id=1328873064]
-position = Vector2(-75.599976, 251.4)
-scale = Vector2(11.1171875, 1)
-polygon = PackedVector2Array(59.1, -64, -59, -64, -63.8, -59, -64, 61, -60.3, 64, 59.6, 64, 63.9, 59, 64, -61.1)
+[node name="Landscape" type="TextureRect" parent="Background" unique_id=1267775012]
+texture_filter = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="Camera2D" type="Camera2D" parent="." unique_id=90765132]
+[node name="Level" type="Node2D" parent="." unique_id=557751662]
+script = ExtResource("4_level")
+player_path = NodePath("../Player")
 
-[node name="Player" parent="." unique_id=580985574 instance=ExtResource("2_0xm2m")]
+[node name="Player" parent="." unique_id=165982137 instance=ExtResource("3_player")]
+position = Vector2(220, 400)
+
+[node name="Camera2D" type="Camera2D" parent="Player" unique_id=711441940]
+position = Vector2(300, -25)
+limit_bottom = 650
+position_smoothing_enabled = true
+position_smoothing_speed = 7.0
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=1717987527]
+
+[node name="Score" type="Label" parent="UI" unique_id=308962139]
+offset_left = 453.0
+offset_top = 11.0
+offset_right = 609.0
+offset_bottom = 50.0
+theme_override_colors/font_color = Color(0.08, 0.22, 0.34, 1)
+theme_override_colors/font_shadow_color = Color(1, 1, 1, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 28
+text = "0m"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Help" type="Label" parent="UI" unique_id=2066203512]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 26.0
+offset_top = -50.0
+offset_right = 412.0
+offset_bottom = -16.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.08, 0.22, 0.34, 1)
+theme_override_font_sizes/font_size = 18
+text = "A / D: MOVE"
