@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://b2xbs5wq16jcv"]
+
+[ext_resource type="ArrayMesh" uid="uid://dol8mb1tnedqo" path="res://assets/seal.obj" id="1_5wjm4"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hnjhv"]
+albedo_color = Color(0.5140263, 0.6081176, 0.6474284, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_333qk"]
+
+[node name="Player3d" type="CharacterBody3D" unique_id=2112541774]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1705217482]
+mesh = ExtResource("1_5wjm4")
+surface_material_override/0 = SubResource("StandardMaterial3D_hnjhv")
+surface_material_override/1 = SubResource("StandardMaterial3D_333qk")
