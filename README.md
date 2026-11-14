@@ -4,7 +4,8 @@
 
 <p> Its a game about a seal bouncing on its back,to control the seal though you have to use the static changing key to save it from the avalanche <p/> 
 Also make sure to play with sound on for the sound effects.
-# How to play
+
+  # How to play
 - In 2D mode you move by holding the button to move, but it changes every few seconds so you gotta keep track of it
 
 - In 3D mode you just move by holding "D"
