@@ -41,7 +41,18 @@ const TREE_REGIONS := [
 	Rect2(613.0, 26.0, 24.0, 38.0),
 	Rect2(658.0, 21.0, 31.0, 43.0),
 ]
-const SNOW_REGION := Rect2(624.0, 142.0, 33.0, 16.0)
+const TREE_SCALES := [1.65, 2.4, 3.25]
+const TREE_NAMES := ["TreeSmall", "TreeMedium", "TreeBig"]
+const SMALL_PROP_REGIONS := [
+	Rect2(611.0, 144.0, 8.0, 16.0), # Eisnadel
+	Rect2(625.0, 149.0, 14.0, 8.0), # Flacher Schneehaufen
+	Rect2(644.0, 148.0, 8.0, 8.0), # Kleiner Schneeball
+	Rect2(659.0, 148.0, 10.0, 9.0), # Runder Schneeball
+	Rect2(676.0, 136.0, 25.0, 22.0), # Breiter Eisklumpen
+	Rect2(710.0, 135.0, 21.0, 24.0), # Hoher Eisklumpen
+	Rect2(688.0, 160.0, 32.0, 32.0), # Holzkiste
+]
+const SMALL_PROP_SCALES := [1.8, 1.7, 2.0, 1.8, 1.25, 1.2, 1.1]
 
 enum SurfaceKind {
 	NORMAL_ICE,
@@ -184,10 +195,10 @@ func _generate_column(column_x: float) -> void:
 
 	# Schneeoberflaechen bleiben frei. Auf den normalen Eisarten duerfen
 	# weiterhin Baeume, Schneehaeufchen und Pinguine stehen.
-	var decoration_chance := 22
+	var decoration_chance := 52
 	if _safe_columns > 0:
 		_safe_columns -= 1
-		decoration_chance = 12
+		decoration_chance = 34
 	if _surface_allows_decoration(surface_kind):
 		_maybe_add_decoration(column, surface_y, decoration_chance)
 
@@ -217,6 +228,9 @@ func _choose_platform_height() -> bool:
 
 func _generate_slide_segment(column: Node2D) -> void:
 	var slope_top_y := floor_y - _surface_level * BLOCK_SIZE.y
+	# Fuer die Kamera zaehlt die Mitte der schraegen Oberflaeche. So folgt sie
+	# der Rampe gleichmaessig statt pro Segment hart um 64 Pixel zu springen.
+	column.set_meta("camera_surface_y", slope_top_y + BLOCK_SIZE.y * 0.5)
 	_add_slope_terrain(column, slope_top_y, _slide_material)
 	_slide_segments_remaining -= 1
 	_surface_level = maxi(0, _surface_level - 1)
@@ -251,9 +265,13 @@ func _add_slope_terrain(parent: Node2D, top_y: float, material: AtlasMaterial) -
 	slope_body.add_child(collision)
 
 	var sprite := Sprite2D.new()
+	sprite.name = "SlopeSprite"
 	sprite.texture = BLUE_SLOPE_TEXTURE if material == AtlasMaterial.BLUE else BLACK_SLOPE_TEXTURE
 	sprite.position = BLOCK_SIZE * 0.5
-	sprite.scale = Vector2(1.5, 1.0)
+	# Die saubere Slope-Grafik ist 32x64 Pixel gross. Dreifache X-Skalierung
+	# zieht nur die Schräge ueber die volle 96-px-Spalte; das separate Atlas-
+	# Eisstueck links daneben wird bewusst nicht mehr mitgerendert.
+	sprite.scale = Vector2(3.0, 1.0)
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	slope_body.add_child(sprite)
 
@@ -356,6 +374,12 @@ func _add_terrain_column(parent: Node2D, surface_y: float, surface_kind: Surface
 	# Nicht nur eine schwebende Plattform: Jede Bodenspalte wird bis unterhalb
 	# des sichtbaren Bereichs mit Eis gefuellt. Luecken rufen diese Funktion nie
 	# auf und bleiben deshalb von oben bis unten offen.
+	var playable_surface_y := (
+		surface_y + BLOCK_SIZE.y * 0.5
+		if surface_kind == SurfaceKind.HALF_SNOW
+		else surface_y
+	)
+	parent.set_meta("camera_surface_y", playable_surface_y)
 	var bottom_y := floor_y + TERRAIN_DEPTH * BLOCK_SIZE.y
 	var layer_y := surface_y
 	var layer := 0
@@ -549,14 +573,13 @@ func _maybe_add_decoration(parent: Node2D, surface_y: float, chance_percent: int
 	if _rng.randi_range(1, 100) > chance_percent:
 		return
 
-	var decoration_kind := _rng.randi_range(0, 3)
-	if decoration_kind == 0:
-		var tree_region: Rect2 = TREE_REGIONS[_rng.randi_range(0, TREE_REGIONS.size() - 1)]
-		_add_decoration_sprite(parent, ICE_TEXTURE, tree_region, surface_y, Vector2(2.5, 2.5))
-	elif decoration_kind == 1:
-		_add_decoration_sprite(parent, ICE_TEXTURE, SNOW_REGION, surface_y, Vector2(1.35, 1.35))
-	elif decoration_kind == 2:
-		_add_penguin(parent, surface_y)
+	var decoration_roll := _rng.randi_range(0, 99)
+	if decoration_roll < 38:
+		_add_random_tree(parent, surface_y)
+	elif decoration_roll < 68:
+		_add_penguin_decoration(parent, surface_y)
+	elif decoration_roll < 96:
+		_add_small_prop(parent, surface_y)
 	else:
 		# Diese Kappe zeigt im Atlas nach oben und wird daher nur auf einer
 		# begehbaren Oberflaeche platziert, nie seitlich oder im Untergrund.
@@ -569,6 +592,56 @@ func _maybe_add_decoration(parent: Node2D, surface_y: float, chance_percent: int
 		)
 
 
+func _add_random_tree(parent: Node2D, surface_y: float) -> void:
+	var tree_region: Rect2 = TREE_REGIONS[_rng.randi_range(0, TREE_REGIONS.size() - 1)]
+	var size_index := _rng.randi_range(0, TREE_SCALES.size() - 1)
+	var tree_scale: float = TREE_SCALES[size_index]
+	var horizontal_position := (
+		_rng.randf_range(38.0, 58.0)
+		if size_index == 2
+		else _rng.randf_range(28.0, 68.0)
+	)
+	_add_decoration_sprite(
+		parent,
+		ICE_TEXTURE,
+		tree_region,
+		surface_y,
+		Vector2(tree_scale, tree_scale),
+		horizontal_position,
+		TREE_NAMES[size_index]
+	)
+
+
+func _add_small_prop(parent: Node2D, surface_y: float) -> void:
+	var prop_index := _rng.randi_range(0, SMALL_PROP_REGIONS.size() - 1)
+	var prop_scale: float = SMALL_PROP_SCALES[prop_index]
+	_add_decoration_sprite(
+		parent,
+		ICE_TEXTURE,
+		SMALL_PROP_REGIONS[prop_index],
+		surface_y,
+		Vector2(prop_scale, prop_scale),
+		_rng.randf_range(20.0, 76.0),
+		"SmallProp"
+	)
+
+
+func _add_penguin_decoration(parent: Node2D, surface_y: float) -> void:
+	# Gelegentliche Paare beleben die langen Plattformen, bleiben aber rein
+	# visuell und veraendern weder Sprungweg noch Kollision.
+	if _rng.randi_range(0, 99) < 35:
+		_add_penguin(parent, surface_y, 30.0, 2.35, false)
+		_add_penguin(parent, surface_y, 68.0, 2.2, true)
+	else:
+		_add_penguin(
+			parent,
+			surface_y,
+			_rng.randf_range(32.0, 64.0),
+			_rng.randf_range(2.55, 3.15),
+			_rng.randi_range(0, 1) == 1
+		)
+
+
 func _add_guaranteed_start_decoration(parent: Node2D, column_x: float) -> void:
 	# Sofort sichtbar: Damit man nicht auf einen guten Zufallswurf warten muss,
 	# stehen im sicheren Startbereich immer ein Pinguin und eine Tanne.
@@ -578,7 +651,13 @@ func _add_guaranteed_start_decoration(parent: Node2D, column_x: float) -> void:
 		_add_decoration_sprite(parent, ICE_TEXTURE, TREE_REGIONS[0], floor_y, Vector2(2.7, 2.7))
 
 
-func _add_penguin(parent: Node2D, surface_y: float) -> void:
+func _add_penguin(
+	parent: Node2D,
+	surface_y: float,
+	horizontal_position: float = 48.0,
+	penguin_scale: float = 3.0,
+	flip_horizontal: bool = false
+) -> void:
 	var frames := SpriteFrames.new()
 	frames.add_animation("idle")
 	frames.set_animation_loop("idle", true)
@@ -597,8 +676,9 @@ func _add_penguin(parent: Node2D, surface_y: float) -> void:
 	var penguin := AnimatedSprite2D.new()
 	penguin.sprite_frames = frames
 	penguin.animation = "idle"
-	penguin.position = Vector2(BLOCK_SIZE.x * 0.5, surface_y - 24.0)
-	penguin.scale = Vector2(3.0, 3.0)
+	penguin.position = Vector2(horizontal_position, surface_y - 8.0 * penguin_scale)
+	penguin.scale = Vector2(penguin_scale, penguin_scale)
+	penguin.flip_h = flip_horizontal
 	penguin.z_index = 2
 	penguin.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	parent.add_child(penguin)
@@ -610,14 +690,17 @@ func _add_decoration_sprite(
 	texture: Texture2D,
 	region: Rect2,
 	surface_y: float,
-	decoration_scale: Vector2
+	decoration_scale: Vector2,
+	horizontal_position: float = 48.0,
+	node_name: String = "Decoration"
 ) -> void:
 	var sprite := Sprite2D.new()
+	sprite.name = node_name
 	sprite.texture = texture
 	sprite.region_enabled = true
 	sprite.region_rect = region
 	sprite.position = Vector2(
-		BLOCK_SIZE.x * 0.5,
+		horizontal_position,
 		surface_y - region.size.y * decoration_scale.y * 0.5
 	)
 	sprite.scale = decoration_scale
@@ -631,3 +714,20 @@ func _delete_old_columns() -> void:
 	while not _columns.is_empty() and _columns.front().global_position.x < cutoff:
 		var old_column: Node2D = _columns.pop_front()
 		old_column.queue_free()
+
+
+func get_camera_surface_y(world_x: float) -> float:
+	# Die naechste existierende Bodenspalte bestimmt die Kamerahoehe. Da
+	# Luecken gar keine Spalte besitzen, bleibt die Kamera beim Ueberspringen
+	# stabil auf der letzten bzw. naechsten Landschaftshoehe.
+	var closest_surface_y := floor_y
+	var closest_distance := INF
+	for column in _columns:
+		if not is_instance_valid(column) or not column.has_meta("camera_surface_y"):
+			continue
+		var column_center_x := column.global_position.x + BLOCK_SIZE.x * 0.5
+		var distance := absf(column_center_x - world_x)
+		if distance < closest_distance:
+			closest_distance = distance
+			closest_surface_y = float(column.get_meta("camera_surface_y"))
+	return closest_surface_y
