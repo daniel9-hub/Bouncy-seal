@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://b1dv0meuavcm1" path="res://player.gd" id="1_onrkg"]
 [ext_resource type="Texture2D" uid="uid://b4xe76qpeav6q" path="res://assets/Pixel_Seal_Drawing.png" id="2_onrkg"]
 [ext_resource type="Texture2D" uid="uid://b26ymn5gl7uku" path="res://assets/SnowTileset/SnowTileset.png" id="3_snow_tiles"]
+[ext_resource type="AudioStream" uid="uid://c8dylqqgw4nfp" path="res://boingwhenjump.mp3" id="4_jump_sound"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jump_snow"]
 atlas = ExtResource("3_snow_tiles")
@@ -34,6 +35,10 @@ initial_velocity_min = 75.0
 initial_velocity_max = 135.0
 scale_amount_min = 0.5
 scale_amount_max = 0.9
+
+[node name="JumpSound" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_jump_sound")
+volume_db = -3.0
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="." unique_id=2048583321]
 rotation = -3.1415925

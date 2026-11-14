@@ -27,6 +27,7 @@ var _jump_tween: Tween
 
 @onready var player_sprite: Sprite2D = $Sprite2D
 @onready var jump_particles: CPUParticles2D = $JumpParticles
+@onready var jump_sound: AudioStreamPlayer = $JumpSound
 
 
 func _ready() -> void:
@@ -76,7 +77,7 @@ func _physics_process(delta: float) -> void:
 			velocity.y = SLIDE_STICK_SPEED
 	elif is_on_floor():
 		velocity.y = JUMP_VELOCITY
-		_play_jump_effect(false)
+		_play_ground_bounce_effect()
 		bounced.emit()
 
 	if _blue_slide_zone_count == 0:
@@ -99,7 +100,6 @@ func _enter_blue_slide_zone() -> void:
 
 func _exit_blue_slide_zone() -> void:
 	_blue_slide_zone_count = maxi(0, _blue_slide_zone_count - 1)
-
 
 func _enter_black_slope_zone() -> void:
 	_black_slope_zone_count += 1
@@ -138,3 +138,8 @@ func _play_jump_effect(is_boost: bool) -> void:
 	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	jump_particles.amount = 10 if is_boost else 6
 	jump_particles.restart()
+
+
+func _play_ground_bounce_effect() -> void:
+	_play_jump_effect(false)
+	jump_sound.play()

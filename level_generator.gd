@@ -18,6 +18,11 @@ const MAX_SURFACE_LEVEL := 8
 const TERRAIN_DEPTH := 5
 const START_X := -576.0
 const SAFE_START_END := 720.0
+const FULL_DIFFICULTY_X := 12000.0
+const GAP_CHANCE_START := 16
+const GAP_CHANCE_MAX := 24
+const SLIDE_CHANCE_START := 32
+const SLIDE_CHANCE_MAX := 40
 const ICE_BLOCK_REGION := Rect2(144.0, 208.0, 96.0, 64.0)
 const PALE_SNOW_BLOCK_REGION := Rect2(304.0, 80.0, 96.0, 64.0)
 const SNOW_FRONT_REGION := Rect2(528.0, 80.0, 64.0, 64.0)
@@ -137,6 +142,8 @@ func _generate_column(column_x: float) -> void:
 		_generate_slide_segment(column)
 		return
 
+	var difficulty := _difficulty_at(column_x)
+
 	# Rampen beginnen nur hoch genug und am Ende eines flachen Abschnitts.
 	# Die Laenge ist auf die aktuelle Hoehe begrenzt, damit der letzte Hang
 	# nicht unterhalb des normalen Bodens endet.
@@ -144,22 +151,24 @@ func _generate_column(column_x: float) -> void:
 		_safe_columns == 0
 		and _height_run_remaining <= 0
 		and _surface_level >= 4
-		and _rng.randi_range(0, 99) < 30
+		and _rng.randi_range(0, 99) < roundi(lerpf(SLIDE_CHANCE_START, SLIDE_CHANCE_MAX, difficulty))
 	):
 		_slide_segments_remaining = _rng.randi_range(4, mini(8, _surface_level))
 		_slide_material = AtlasMaterial.BLUE if _rng.randi_range(0, 99) < 70 else AtlasMaterial.BLACK
 		_generate_slide_segment(column)
 		return
 
-	# Nach ein paar sicheren Spalten darf eine ein- oder zweispaltige Luecke
-	# beginnen. Die komplette Spalte bleibt dabei bis unten offen.
-	if _safe_columns == 0 and _rng.randi_range(0, 99) < 14:
+	# Nach ein paar sicheren Spalten darf eine Luecke beginnen. Zu Beginn ist
+	# sie hoechstens zwei, spaeter hoechstens drei Blocks breit.
+	var gap_chance := roundi(lerpf(GAP_CHANCE_START, GAP_CHANCE_MAX, difficulty))
+	if _safe_columns == 0 and _rng.randi_range(0, 99) < gap_chance:
 		# Erst jetzt kennen wir das Ende der Plattform. Nur dort werden Ecke
 		# und Seitenwand des letzten Atlas-Blocks sichtbar.
 		_set_column_edge(_last_terrain_column, false, INF)
 		column.queue_free()
 		_columns.pop_back()
-		_gap_columns = _rng.randi_range(0, 1)
+		var max_gap_tail := 1 if difficulty < 0.45 else 2
+		_gap_columns = _rng.randi_range(0, max_gap_tail)
 		_safe_columns = 2
 		_needs_left_edge = _gap_columns == 0
 		return
@@ -216,14 +225,18 @@ func _choose_platform_height() -> bool:
 		# Oben entweder bleiben oder eine Stufe absteigen.
 		if height_roll < 58:
 			_surface_level -= 1
-	elif height_roll < (60 if _surface_level < 4 else 48):
+	elif height_roll < (66 if _surface_level < 4 else 55):
 		_surface_level += 1
-	elif height_roll < 73:
+	elif height_roll < 80:
 		_surface_level -= 1
 
 	_surface_level = clampi(_surface_level, 0, MAX_SURFACE_LEVEL)
-	_height_run_remaining = _rng.randi_range(3, 7)
+	_height_run_remaining = _rng.randi_range(2, 5)
 	return _surface_level > previous_level
+
+
+func _difficulty_at(column_x: float) -> float:
+	return clampf((column_x - SAFE_START_END) / (FULL_DIFFICULTY_X - SAFE_START_END), 0.0, 1.0)
 
 
 func _generate_slide_segment(column: Node2D) -> void:
