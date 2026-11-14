@@ -1,6 +1,8 @@
 extends Node2D
 
-const CAMERA_SPEED := 165.0
+const CAMERA_START_SPEED := 155.0
+const CAMERA_MAX_SPEED := 300.0
+const CAMERA_ACCELERATION := 5.0
 const LEFT_EDGE_GRACE := 24.0
 
 @onready var player: CharacterBody2D = $Player
@@ -8,6 +10,7 @@ const LEFT_EDGE_GRACE := 24.0
 @onready var level: Node2D = $Level
 
 var _restarting := false
+var _camera_speed := CAMERA_START_SPEED
 
 
 func _ready() -> void:
@@ -22,7 +25,9 @@ func _process(delta: float) -> void:
 	if _restarting:
 		return
 
-	camera.global_position.x += CAMERA_SPEED * delta
+	# Jede Sekunde wird die Kamera etwas schneller, bis zum fairen Maximum.
+	_camera_speed = minf(_camera_speed + CAMERA_ACCELERATION * delta, CAMERA_MAX_SPEED)
+	camera.global_position.x += _camera_speed * delta
 	var half_view_width := get_viewport_rect().size.x * 0.5 / camera.zoom.x
 	var camera_left_edge := camera.global_position.x - half_view_width
 
