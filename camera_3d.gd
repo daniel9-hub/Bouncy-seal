@@ -6,4 +6,4 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	position += Vector3(0,0,0.07)
+	position += Vector3(0,0,0.08)

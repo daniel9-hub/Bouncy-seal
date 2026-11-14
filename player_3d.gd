@@ -22,3 +22,7 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0, SPEED)
 
 	move_and_slide()
+
+
+func _on_visible_on_screen_notifier_3d_screen_exited() -> void:
+	get_tree().change_scene_to_file("res://main3d.tscn")

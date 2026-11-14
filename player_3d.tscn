@@ -25,3 +25,7 @@ shape = SubResource("CapsuleShape3D_tugg1")
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=285283912]
 transform = Transform3D(1, 0, 0, 0, 0.26611874, 0.96394026, 0, -0.96394026, 0.26611874, 0, 16.580566, 6.857361)
 light_color = Color(1, 1, 0.8039216, 1)
+
+[node name="VisibleOnScreenNotifier3D" type="VisibleOnScreenNotifier3D" parent="." unique_id=1554786390]
+
+[connection signal="screen_exited" from="VisibleOnScreenNotifier3D" to="." method="_on_visible_on_screen_notifier_3d_screen_exited"]

@@ -31,7 +31,7 @@ surface_material_override/0 = SubResource("StandardMaterial3D_vbx4p")
 shape = SubResource("ConcavePolygonShape3D_etepw")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=727710236]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.891057, 0)
+transform = Transform3D(1, 0, 0, 0, 1.1695057, 0, 0, 0, 1, 0, 0.49402428, 0)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D" unique_id=146658184]
 transform = Transform3D(-1.3113416e-07, 0, 1.6294262, 0, 3, 0, -3, 0, -7.122448e-08, 0, 3.110906, 0)
