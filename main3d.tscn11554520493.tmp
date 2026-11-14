@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://cmxuuy5pprm0p"]
+
+[ext_resource type="Script" uid="uid://b8sd2l5snuq5c" path="res://map_generation3d.gd" id="1_pmjbp"]
+[ext_resource type="PackedScene" uid="uid://b2xbs5wq16jcv" path="res://player_3d.tscn" id="1_sk41h"]
+[ext_resource type="PackedScene" uid="uid://hd05t57e6iwg" path="res://block_1.tscn" id="2_fxs24"]
+[ext_resource type="PackedScene" uid="uid://cv4w2gqkhk88n" path="res://snow_block_1.tscn" id="4_j8wvp"]
+[ext_resource type="Script" uid="uid://uvamn3r0aeyt" path="res://camera_3d.gd" id="5_tvsrp"]
+
+[sub_resource type="Environment" id="Environment_fxs24"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bx3dq"]
+
+[node name="Node3D" type="Node3D" unique_id=282964413]
+script = ExtResource("1_pmjbp")
+
+[node name="Player3d" parent="." unique_id=2112541774 instance=ExtResource("1_sk41h")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.245182, 0)
+
+[node name="block1" parent="." unique_id=1771197429 instance=ExtResource("2_fxs24")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -4.2129164, 0)
+
+[node name="block2" parent="." unique_id=1485451804 instance=ExtResource("2_fxs24")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -3.9824123, 35.688416)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=65314310]
+environment = SubResource("Environment_fxs24")
+
+[node name="snow_block1" parent="." unique_id=501918672 instance=ExtResource("4_j8wvp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -4, 10.995148)
+
+[node name="snow_block2" parent="." unique_id=530978091 instance=ExtResource("4_j8wvp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -3.7875366, 24.03273)
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=834771820]
+transform = Transform3D(0.1804045, 0, -0.9835925, 0, 1, 0, 0.98359257, 0, 0.18040448, -6.2813344, 0.36843872, 3.6075635)
+fov = 126.6
+script = ExtResource("5_tvsrp")
+
+[node name="Area3D" type="Area3D" parent="Camera3D" unique_id=1589175250]
+transform = Transform3D(0.18040447, 0, 0.9835924, 0, 1, 0, -0.98359245, 0, 0.18040448, -22.779049, -0.36843872, -10.564108)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Camera3D/Area3D" unique_id=1605697458]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.751217, -2.4058228)
+shape = SubResource("BoxShape3D_bx3dq")
+
+[connection signal="body_entered" from="Camera3D/Area3D" to="." method="_on_area_3d_body_entered"]

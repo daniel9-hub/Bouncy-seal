@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://civkaskm3d3kp"]
+
+[node name="ui" type="Node2D" unique_id=778879936]
+
+[node name="TextureButton" type="TextureButton" parent="." unique_id=1544869063]
+offset_right = 40.0
+offset_bottom = 40.0
