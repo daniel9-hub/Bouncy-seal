@@ -1,3 +1,3 @@
 # Bouncy-seal
 
-<h1> seal that goes boing boing boing </h1>
+<p> seal that goes boing boing boing </p>
