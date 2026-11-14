@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://pwsb0xl52fsv"
+path="res://.godot/imported/seal_gg.obj-b81e61c92f918b489b41bc6ece574cab.mesh"
+
+[deps]
+
+files=["res://.godot/imported/seal_gg.obj-b81e61c92f918b489b41bc6ece574cab.mesh"]
+
+source_file="res://assets/seal_gg.obj"
+dest_files=["res://.godot/imported/seal_gg.obj-b81e61c92f918b489b41bc6ece574cab.mesh", "res://.godot/imported/seal_gg.obj-b81e61c92f918b489b41bc6ece574cab.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false
