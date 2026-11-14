@@ -22,7 +22,7 @@ const SLIDE_QTE_CAMERA_ZOOM := 1.15
 const SLIDE_QTE_ZOOM_IN_DURATION := 0.72
 const SLIDE_QTE_FADE_IN_DURATION := 0.34
 const SLIDE_QTE_FADE_OUT_DURATION := 0.16
-const SLIDE_QTE_MAX_REAL_SECONDS := 3.0
+const SLIDE_QTE_MAX_REAL_SECONDS := 2.0
 const MOVE_KEY_CHANGE_INTERVAL := 8.0
 const CLOCK_TIME_BONUS := 4.0
 const MAX_MOVE_KEY_TIME := MOVE_KEY_CHANGE_INTERVAL + CLOCK_TIME_BONUS
@@ -46,6 +46,9 @@ const MOVE_KEY_POOL := [
 @onready var death_screen: Control = $UI/DeathScreen
 @onready var death_score_label: Label = $UI/DeathScreen/Panel/Score
 @onready var restart_button: Button = $UI/DeathScreen/Panel/Restart
+@onready var pause_menu: Control = $UI/PauseMenu
+@onready var resume_button: Button = $UI/PauseMenu/Panel/Resume
+@onready var title_button: Button = $UI/PauseMenu/Panel/Title2
 
 var _restarting := false
 var _start_countdown_active := true
@@ -74,7 +77,6 @@ var _fx_rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	Engine.time_scale = 1.0
 	player.process_mode = Node.PROCESS_MODE_DISABLED
-	# Aus der Player-Kamera wird zur Laufzeit eine unabhaengige Runner-Kamera.
 	camera.reparent(self, true)
 	camera.global_position = Vector2(576.0, 300.0)
 	camera.position_smoothing_enabled = false
@@ -106,6 +108,35 @@ func _ready() -> void:
 	call_deferred("_run_start_countdown")
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB:
+		_toggle_pause()
+		get_viewport().set_input_as_handled()
+
+
+func _toggle_pause() -> void:
+	if _restarting or _start_countdown_active:
+		return
+	var should_pause := not get_tree().paused
+	get_tree().paused = should_pause
+	pause_menu.visible = should_pause
+	if should_pause:
+		player.process_mode = Node.PROCESS_MODE_DISABLED
+		resume_button.grab_focus()
+
+
+func _resume_game() -> void:
+	get_tree().paused = false
+	pause_menu.visible = false
+	if not _restarting:
+		player.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+func _quit_to_title() -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://title_screen.tscn")
+
+
 func _run_start_countdown() -> void:
 	for number in ["3", "2", "1"]:
 		await _animate_start_countdown_step(number)
@@ -133,10 +164,11 @@ func _animate_start_countdown_step(value: String) -> void:
 func _process(delta: float) -> void:
 	if _restarting:
 		return
+	if get_tree().paused:
+		return
 	if _start_countdown_active:
 		return
 
-	# Jede Sekunde wird die Kamera etwas schneller, bis zum fairen Maximum.
 	_camera_speed = minf(_camera_speed + CAMERA_ACCELERATION * delta, CAMERA_MAX_SPEED)
 	camera.global_position.x += _camera_speed * delta
 	if not _slide_qte_active:
@@ -145,8 +177,6 @@ func _process(delta: float) -> void:
 		_slide_qte_elapsed += delta
 		var qte_real_elapsed := (Time.get_ticks_msec() - _slide_qte_started_msec) / 1000.0
 		if qte_real_elapsed >= SLIDE_QTE_MAX_REAL_SECONDS:
-			# Never allow a missed input/area-exit signal to leave the whole game
-			# permanently slowed down.
 			_end_slide_qte()
 		elif _slide_qte_elapsed > 0.18 and not player.is_on_blue_slide_zone():
 			_end_slide_qte()
@@ -164,13 +194,9 @@ func _process(delta: float) -> void:
 func _update_avalanche(_delta: float) -> void:
 	var half_view_width := get_viewport_rect().size.x * 0.5 / camera.zoom.x
 	var camera_left_edge := camera.global_position.x - half_view_width
-	# Sehr schnelle Interpolation verhindert sichtbares Snap-Jittern, ohne die
-	# Lawine vom linken Rand wegdriften zu lassen.
 	var target_x := camera_left_edge + AVALANCHE_EDGE_OFFSET
 	var follow_weight := minf(1.0, AVALANCHE_FOLLOW_SPEED * _delta)
 	avalanche.global_position.x = lerpf(avalanche.global_position.x, target_x, follow_weight)
-	# Die vertikale Kamerabewegung ist die einzige Y-Referenz der Lawine. So
-	# folgt sie jeder Landschaftsstufe weich und bleibt bis unter den Screen.
 	var target_y := camera.global_position.y - 50.0
 	avalanche.global_position.y = lerpf(
 		avalanche.global_position.y,
@@ -180,7 +206,6 @@ func _update_avalanche(_delta: float) -> void:
 
 
 func _update_score() -> void:
-	# Rueckstoss darf den Punktestand nicht wieder verkleinern.
 	_furthest_player_x = maxf(_furthest_player_x, player.global_position.x)
 	var points := maxi(0, int((_furthest_player_x - _score_start_x) / SCORE_PIXELS_PER_POINT))
 	score_label.text = str(points)

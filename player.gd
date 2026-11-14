@@ -33,7 +33,6 @@ var _jump_tween: Tween
 
 
 func _ready() -> void:
-	# Haelt die Robbe auch zwischen zwei Rampensegmenten sauber am Hang.
 	floor_snap_length = 12.0
 	floor_stop_on_slope = false
 	_base_sprite_rotation = player_sprite.rotation
@@ -41,8 +40,6 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	# Nur das sichtbare Modell neigt sich. Der CharacterBody und seine Kollision
-	# bleiben aufrecht und dadurch auch auf Segmentnahtstellen stabil.
 	var on_any_slope := _blue_slide_zone_count > 0 or _black_slope_zone_count > 0
 	var target_rotation := _base_sprite_rotation + SLOPE_ANGLE if on_any_slope else _base_sprite_rotation
 	player_sprite.rotation = lerp_angle(
@@ -61,12 +58,9 @@ func _physics_process(delta: float) -> void:
 
 	var on_blue_slide := is_on_blue_slide_zone()
 
-	# Add the gravity.
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 
-	# Blaues Eis wird zu einer echten Rutsche. Schwarze Rampen gehoeren nicht
-	# zur Slide-Gruppe und behalten deshalb das normale automatische Hopsen.
 	if on_blue_slide:
 		if Input.is_action_just_pressed("jump_boost") and not _blue_boost_used:
 			velocity.x = maxf(velocity.x, BLUE_BOOST_FORWARD_SPEED)
@@ -85,8 +79,6 @@ func _physics_process(delta: float) -> void:
 	if _blue_slide_zone_count == 0:
 		_blue_boost_used = false
 
-	# Die Robbe kann nur aktiv nach rechts laufen. Negative X-Geschwindigkeit
-	# entsteht ausschliesslich durch den gewollten seitlichen Knockback.
 	if not on_blue_slide:
 		if Input.is_action_pressed("right"):
 			velocity.x = SPEED
@@ -108,16 +100,10 @@ func _exit_blue_slide_zone() -> void:
 
 
 func is_on_blue_slide_zone() -> bool:
-	# If physics is intentionally paused (for example while a scene/test is
-	# being previewed), the overlap count is the only reliable state available.
-	# During normal gameplay require the body to still be grounded as well, so a
-	# missed area-exit signal can never leave the QTE in slow motion mid-air.
 	if process_mode == Node.PROCESS_MODE_DISABLED:
 		return _blue_slide_zone_count > 0
 	if _blue_slide_zone_count <= 0 or not is_on_floor():
 		return false
-	# A stale Area2D overlap can survive a bad landing for one frame. A real
-	# slope has a visibly angled floor normal; a flat landing must end the QTE.
 	var floor_normal := get_floor_normal()
 	return absf(floor_normal.x) > 0.15 and floor_normal.y < -0.55
 

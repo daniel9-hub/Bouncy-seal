@@ -3,8 +3,6 @@ extends Node2D
 signal player_died
 signal clock_collected
 
-## Endloser, aber spielbarer Level-Generator.
-## Alle wichtigen Werte stehen hier oben, damit ihr sie beim Hackathon schnell tunen koennt.
 
 @export var player_path: NodePath
 @export var floor_y := 520.0
@@ -14,8 +12,6 @@ signal clock_collected
 
 const BLOCK_SIZE := Vector2(96.0, 64.0)
 const MAX_SURFACE_LEVEL := 8
-## Fuenf Schichten reichen von der Oberflaeche bis deutlich unter den Bildschirm.
-## Eine Luecke laesst immer die gesamte Spalte frei.
 const TERRAIN_DEPTH := 5
 const START_X := -576.0
 const SAFE_START_END := 720.0
@@ -119,14 +115,12 @@ func _generate_column(column_x: float) -> void:
 	add_child(column)
 	_columns.append(column)
 
-	# Der Anfang ist immer flach. Danach entstehen mehrere Hoehenebenen.
 	if column_x < SAFE_START_END:
 		var needs_decoration := (
 			is_equal_approx(column_x, 384.0)
 			or is_equal_approx(column_x, 672.0)
 		)
 		var start_surface := _random_surface_kind(needs_decoration)
-		# Die zwei garantierten Figuren bekommen immer eine dekorierbare Eisart.
 		_add_terrain_column(column, floor_y, start_surface)
 		_add_guaranteed_start_decoration(column, column_x)
 		_last_terrain_column = column
@@ -142,36 +136,26 @@ func _generate_column(column_x: float) -> void:
 			_needs_left_edge = true
 		return
 
-	# Eine begonnene Rampe wird immer als geschlossene Kette fortgesetzt.
-	# Dadurch koennen weder Luecken noch normale Plattformen sie zerhacken.
 	if _slide_segments_remaining > 0:
 		_generate_slide_segment(column)
 		return
 
 	var difficulty := _difficulty_at(column_x)
 
-	# Rampen beginnen nur hoch genug und am Ende eines flachen Abschnitts.
-	# Die Laenge ist auf die aktuelle Hoehe begrenzt, damit der letzte Hang
-	# nicht unterhalb des normalen Bodens endet.
 	if (
 		_safe_columns == 0
 		and _height_run_remaining <= 0
 		and _surface_level >= 4
 		and _rng.randi_range(0, 99) < roundi(lerpf(SLIDE_CHANCE_START, SLIDE_CHANCE_MAX, difficulty))
 	):
-		# Auch Rampen folgen der Drei-gleiche-Tiles-Regel.
 		_slide_segments_remaining = _rng.randi_range(2, mini(3, _surface_level))
 		_slide_material = AtlasMaterial.BLUE if _rng.randi_range(0, 99) < 70 else AtlasMaterial.BLACK
 		_reset_surface_run()
 		_generate_slide_segment(column)
 		return
 
-	# Nach ein paar sicheren Spalten darf eine Luecke beginnen. Zu Beginn ist
-	# sie hoechstens zwei, spaeter hoechstens drei Blocks breit.
 	var gap_chance := roundi(lerpf(GAP_CHANCE_START, GAP_CHANCE_MAX, difficulty))
 	if _safe_columns == 0 and _rng.randi_range(0, 99) < gap_chance:
-		# Erst jetzt kennen wir das Ende der Plattform. Nur dort werden Ecke
-		# und Seitenwand des letzten Atlas-Blocks sichtbar.
 		_set_column_edge(_last_terrain_column, false, INF)
 		column.queue_free()
 		_columns.pop_back()
@@ -189,9 +173,6 @@ func _generate_column(column_x: float) -> void:
 	_add_terrain_column(column, surface_y, surface_kind)
 	_height_run_remaining -= 1
 
-	# Nach einer Luecke ist die komplette linke Wand frei. Bei einer Stufe nach
-	# oben ist nur der Teil oberhalb des vorherigen Bodens frei. Faellt das
-	# Terrain ab, bekommt stattdessen die vorherige Spalte eine rechte Kante.
 	if _needs_left_edge:
 		_set_column_edge(column, true, INF)
 		_needs_left_edge = false
@@ -203,16 +184,12 @@ func _generate_column(column_x: float) -> void:
 	_last_terrain_column = column
 	_last_surface_y = surface_y
 
-	# Bei einer neuen Stufe ist nur die Vorderseite gefaehrlich. Die Oberseite
-	# bleibt eine normale, landbare Plattform.
 	if rose_this_column:
 		if surface_kind == SurfaceKind.HALF_SNOW:
 			_add_knockback_side(column, surface_y + BLOCK_SIZE.y * 0.5, BLOCK_SIZE.y * 0.5)
 		else:
 			_add_knockback_side(column, surface_y, BLOCK_SIZE.y)
 
-	# Schneeoberflaechen bleiben frei. Auf den normalen Eisarten duerfen
-	# weiterhin Baeume, Schneehaeufchen und Pinguine stehen.
 	var decoration_chance := 52
 	if _safe_columns > 0:
 		_safe_columns -= 1
@@ -228,10 +205,8 @@ func _choose_platform_height() -> bool:
 	var previous_level := _surface_level
 	var height_roll := _rng.randi_range(0, 99)
 	if _surface_level == 0:
-		# Nach der flachen Startzone geht es bewusst nach oben.
 		_surface_level = 1
 	elif _surface_level == MAX_SURFACE_LEVEL:
-		# Oben entweder bleiben oder eine Stufe absteigen.
 		if height_roll < 58:
 			_surface_level -= 1
 	elif height_roll < (66 if _surface_level < 4 else 55):
@@ -250,8 +225,6 @@ func _difficulty_at(column_x: float) -> float:
 
 func _generate_slide_segment(column: Node2D) -> void:
 	var slope_top_y := floor_y - _surface_level * BLOCK_SIZE.y
-	# Fuer die Kamera zaehlt die Mitte der schraegen Oberflaeche. So folgt sie
-	# der Rampe gleichmaessig statt pro Segment hart um 64 Pixel zu springen.
 	column.set_meta("camera_surface_y", slope_top_y + BLOCK_SIZE.y * 0.5)
 	_add_slope_terrain(column, slope_top_y, _slide_material)
 	_slide_segments_remaining -= 1
@@ -261,7 +234,6 @@ func _generate_slide_segment(column: Node2D) -> void:
 	_needs_left_edge = false
 
 	if _slide_segments_remaining == 0:
-		# Nach der Rampe folgt ein kurzer sicherer, flacher Auslauf.
 		_height_run_remaining = _rng.randi_range(3, 6)
 		_safe_columns = maxi(_safe_columns, 3)
 
@@ -275,9 +247,6 @@ func _add_slope_terrain(parent: Node2D, top_y: float, material: AtlasMaterial) -
 	parent.add_child(slope_body)
 	_add_slope_area(slope_body, material)
 
-	# Nur die sichtbare Hanglinie kollidiert. Ein gefuelltes Dreieck haette an
-	# jedem Segmentanfang eine unsichtbare senkrechte Naht, an der die Robbe
-	# haengen bleiben wuerde.
 	var slope_shape := SegmentShape2D.new()
 	slope_shape.a = Vector2(0.0, 0.0)
 	slope_shape.b = Vector2(BLOCK_SIZE.x, BLOCK_SIZE.y)
@@ -290,16 +259,10 @@ func _add_slope_terrain(parent: Node2D, top_y: float, material: AtlasMaterial) -
 	sprite.name = "SlopeSprite"
 	sprite.texture = BLUE_SLOPE_TEXTURE if material == AtlasMaterial.BLUE else BLACK_SLOPE_TEXTURE
 	sprite.position = BLOCK_SIZE * 0.5
-	# Die saubere Slope-Grafik ist 32x64 Pixel gross. Dreifache X-Skalierung
-	# zieht nur die Schräge ueber die volle 96-px-Spalte; das separate Atlas-
-	# Eisstueck links daneben wird bewusst nicht mehr mitgerendert.
 	sprite.scale = Vector2(3.0, 1.0)
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	slope_body.add_child(sprite)
 
-	# Direkt unter jedem Hang liegt zwingend ein farblich passender Mittelpunkt-
-	# Block. So schliesst das Dreieck sichtbar ab und es entsteht kein freier
-	# oder farblich unpassender Raum unter der Rampe.
 	var bottom_y := floor_y + TERRAIN_DEPTH * BLOCK_SIZE.y
 	var layer_y := top_y + BLOCK_SIZE.y
 	if layer_y < bottom_y:
@@ -313,8 +276,6 @@ func _add_slope_terrain(parent: Node2D, top_y: float, material: AtlasMaterial) -
 
 
 func _add_slope_support_block(parent: Node2D, top_y: float, material: AtlasMaterial) -> void:
-	# Fuer den direkten Unterbau wird das vollstaendige normale 64x64-Blockbild
-	# verwendet, nicht ein Muster aus einzelnen Mittelpunkt-Tiles.
 	var region := BLUE_FULL_BLOCK_REGION if material == AtlasMaterial.BLUE else BLACK_FULL_BLOCK_REGION
 	_add_ice_block(
 		parent,
@@ -328,9 +289,6 @@ func _add_slope_support_block(parent: Node2D, top_y: float, material: AtlasMater
 
 
 func _add_slope_area(parent: Node2D, material: AtlasMaterial) -> void:
-	# Ein schmales Band folgt dem Hang. Anders als Floor-Snap-Kollisionen bleibt
-	# ein Area-Kontakt auch an den Naehten zwischen zwei Segmenten stabil. Beide
-	# Materialien nutzen es fuer die Neigung, nur Blau aktiviert Slide/Boost.
 	var area := Area2D.new()
 	area.name = "BlueSlideArea" if material == AtlasMaterial.BLUE else "BlackSlopeArea"
 	area.collision_layer = 0
@@ -370,9 +328,6 @@ func _on_slope_body_exited(body: Node2D, material: AtlasMaterial) -> void:
 
 
 func _random_surface_kind(decoration_safe: bool = false) -> SurfaceKind:
-	# Pro Spalte neu entscheiden: Schnee und Eis wirken dadurch natuerlich
-	# durchmischt. Nach drei gleichen Oberflaechen wird zwingend eine andere
-	# gewaehlt, damit horizontal nie vier gleiche Tiles nebeneinander stehen.
 	var surface_roll := _rng.randi_range(0, 99)
 	var surface_kind: SurfaceKind
 	if surface_roll < 18:
@@ -422,9 +377,6 @@ func _surface_allows_decoration(surface_kind: SurfaceKind) -> bool:
 
 
 func _add_terrain_column(parent: Node2D, surface_y: float, surface_kind: SurfaceKind) -> void:
-	# Nicht nur eine schwebende Plattform: Jede Bodenspalte wird bis unterhalb
-	# des sichtbaren Bereichs mit Eis gefuellt. Luecken rufen diese Funktion nie
-	# auf und bleiben deshalb von oben bis unten offen.
 	var playable_surface_y := (
 		surface_y + BLOCK_SIZE.y * 0.5
 		if surface_kind == SurfaceKind.HALF_SNOW
@@ -438,9 +390,6 @@ func _add_terrain_column(parent: Node2D, surface_y: float, surface_kind: Surface
 		if layer == 0:
 			_add_surface_block(parent, layer_y, surface_kind)
 		else:
-			# Schnee-Caps duerfen niemals hier landen. Unter jeder Oberflaeche
-			# stehen ausschliesslich voll ausgefuellte Eisblocks. Der neue Atlas-
-			# Block darf hier fuer Abwechslung verwendet werden, Schnee nicht.
 			_add_subsurface_block(parent, layer_y, layer)
 		layer += 1
 		layer_y += BLOCK_SIZE.y
@@ -449,8 +398,6 @@ func _add_terrain_column(parent: Node2D, surface_y: float, surface_kind: Surface
 func _add_surface_block(parent: Node2D, top_y: float, surface_kind: SurfaceKind) -> void:
 	match surface_kind:
 		SurfaceKind.HALF_SNOW:
-			# Im Atlas liegen die sichtbaren Pixel nur in der unteren 32-px-Haelfte.
-			# Kollision und Bild stimmen dadurch exakt ueberein.
 			_add_ice_block(
 				parent,
 				top_y,
@@ -473,7 +420,6 @@ func _add_subsurface_block(parent: Node2D, top_y: float, layer: int) -> void:
 	var material_roll := _rng.randi_range(0, 99)
 	var black_chance := 38 if layer >= 2 else 20
 	if material_roll < black_chance:
-		# Dunkles Gestein wird nach unten hin haeufiger.
 		_add_atlas_ice_block(parent, top_y, AtlasMaterial.BLACK, false)
 	elif material_roll < black_chance + 25:
 		_add_atlas_ice_block(parent, top_y, AtlasMaterial.BLUE, false)
@@ -500,8 +446,6 @@ func _add_atlas_ice_block(
 	collision.shape = shape
 	body.add_child(collision)
 
-	# Beim Erzeugen ist noch nicht bekannt, wo die Plattform endet. Darum
-	# bestehen alle inneren Felder zuerst nur aus Boden bzw. Mittelpunkt.
 	var top_texture := _atlas_ground_texture(material) if is_surface else _atlas_center_texture(material)
 	var center_texture := _atlas_center_texture(material)
 	_add_atlas_tile(body, top_texture, Vector2(-32.0, -16.0), "TopLeft")
@@ -598,8 +542,6 @@ func _add_ice_block(
 
 
 func _add_knockback_side(parent: Node2D, top_y: float, edge_height: float) -> void:
-	# Die Zone steht ein wenig vor der linken Wand. Wer die Oberseite verfehlt,
-	# wird getroffen und nach hinten geschleudert, statt sofort zu sterben.
 	var knockback_area := Area2D.new()
 	knockback_area.name = "KnockbackSide"
 	knockback_area.position = Vector2(-8.0, top_y + edge_height * 0.5)
@@ -634,8 +576,6 @@ func _maybe_add_decoration(parent: Node2D, surface_y: float, chance_percent: int
 	elif decoration_roll < 97:
 		_add_small_prop(parent, surface_y)
 	else:
-		# Diese Kappe zeigt im Atlas nach oben und wird daher nur auf einer
-		# begehbaren Oberflaeche platziert, nie seitlich oder im Untergrund.
 		_add_decoration_sprite(
 			parent,
 			ICE_ATLAS_TEXTURE,
@@ -713,8 +653,6 @@ func _on_clock_body_entered(body: Node2D, clock_area: Area2D) -> void:
 
 
 func _add_penguin_decoration(parent: Node2D, surface_y: float) -> void:
-	# Gelegentliche Paare beleben die langen Plattformen, bleiben aber rein
-	# visuell und veraendern weder Sprungweg noch Kollision.
 	if _rng.randi_range(0, 99) < 35:
 		_add_penguin(parent, surface_y, 30.0, 2.35, false)
 		_add_penguin(parent, surface_y, 68.0, 2.2, true)
@@ -729,8 +667,6 @@ func _add_penguin_decoration(parent: Node2D, surface_y: float) -> void:
 
 
 func _add_guaranteed_start_decoration(parent: Node2D, column_x: float) -> void:
-	# Sofort sichtbar: Damit man nicht auf einen guten Zufallswurf warten muss,
-	# stehen im sicheren Startbereich immer ein Pinguin und eine Tanne.
 	if is_equal_approx(column_x, 384.0):
 		_add_penguin(parent, floor_y)
 	elif is_equal_approx(column_x, 672.0):
@@ -803,9 +739,6 @@ func _delete_old_columns() -> void:
 
 
 func get_camera_surface_y(world_x: float) -> float:
-	# Die naechste existierende Bodenspalte bestimmt die Kamerahoehe. Da
-	# Luecken gar keine Spalte besitzen, bleibt die Kamera beim Ueberspringen
-	# stabil auf der letzten bzw. naechsten Landschaftshoehe.
 	var closest_surface_y := floor_y
 	var closest_distance := INF
 	for column in _columns:
