@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://cmxuuy5pprm0p"]
+
+[ext_resource type="PackedScene" uid="uid://b2xbs5wq16jcv" path="res://player_3d.tscn" id="1_sk41h"]
+[ext_resource type="PackedScene" uid="uid://hd05t57e6iwg" path="res://block_1.tscn" id="2_fxs24"]
+
+[node name="Node3D" type="Node3D" unique_id=282964413]
+
+[node name="Player3d" parent="." unique_id=2112541774 instance=ExtResource("1_sk41h")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.245182, 0)
+
+[node name="block1" parent="." unique_id=1771197429 instance=ExtResource("2_fxs24")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -4.2129164, 0)
+
+[node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=613677367]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6606445, 0, 4.662141)
+light_energy = 10.396
+omni_range = 10.863
+
+[node name="OmniLight3D" type="OmniLight3D" parent="OmniLight3D" unique_id=1540387331]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6606445, 1.7941895, -10.537444)
+light_energy = 10.396
+omni_range = 10.863

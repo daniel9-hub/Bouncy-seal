@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://hd05t57e6iwg"]
+
+[ext_resource type="ArrayMesh" uid="uid://cbyhpgiaa6eyk" path="res://assets/block1.obj" id="1_51j2o"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_51j2o"]
+size = Vector3(2, 5.464452, 8.665988)
+
+[node name="block1" type="StaticBody3D" unique_id=1771197429]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1884360758]
+mesh = ExtResource("1_51j2o")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1657587049]
+shape = SubResource("BoxShape3D_51j2o")
