@@ -43,6 +43,9 @@ const MOVE_KEY_POOL := [
 @onready var death_sound: AudioStreamPlayer = $DeathSound
 @onready var move_key_tick_sound: AudioStreamPlayer = $MoveKeyTickSound
 @onready var avalanche: Area2D = $Avalanche
+@onready var death_screen: Control = $UI/DeathScreen
+@onready var death_score_label: Label = $UI/DeathScreen/Panel/Score
+@onready var restart_button: Button = $UI/DeathScreen/Panel/Restart
 
 var _restarting := false
 var _start_countdown_active := true
@@ -459,11 +462,17 @@ func _restart_game(play_death_sound: bool = true) -> void:
 	_restarting = true
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	move_key_tick_sound.stop()
+	death_score_label.text = "SCORE  %d" % _score_points
+	death_screen.visible = true
+	restart_button.grab_focus()
 	if play_death_sound and death_sound.stream:
-		death_sound.finished.connect(_reload_game, CONNECT_ONE_SHOT)
 		death_sound.play()
-	else:
-		_reload_game()
+
+
+func _on_restart_button_pressed() -> void:
+	if not _restarting:
+		return
+	_reload_game()
 
 
 func _reload_game() -> void:
