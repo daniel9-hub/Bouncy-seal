@@ -2,8 +2,8 @@
 <p> seal that goes boing boing boing </p>
 !CHECK OUT THE 2D MODE FIRST! (3D was an experiment :3 )
 
-<p> Its a game about a seal bouncing on its back,to control the seal though you have to use the static changing key to save it from the avalanche <p/>
-
+<p> Its a game about a seal bouncing on its back,to control the seal though you have to use the static changing key to save it from the avalanche <p/> 
+Also make sure to play with sound on for the sound effects.
 # How to play
 - In 2D mode you move by holding the button to move, but it changes every few seconds so you gotta keep track of it
 
