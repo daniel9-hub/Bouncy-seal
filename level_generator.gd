@@ -23,6 +23,8 @@ const PALE_SNOW_BLOCK_REGION := Rect2(304.0, 80.0, 96.0, 64.0)
 const SNOW_FRONT_REGION := Rect2(528.0, 80.0, 64.0, 64.0)
 const ICE_TEXTURE := preload("res://assets/SnowTileset/SnowTileset.png")
 const ICE_ATLAS_TEXTURE := preload("res://assets/Ice_Tileset.png")
+const BLUE_FULL_BLOCK_REGION := Rect2(64.0, 0.0, 64.0, 64.0)
+const BLACK_FULL_BLOCK_REGION := Rect2(0.0, 0.0, 64.0, 64.0)
 const BLUE_GROUND_TEXTURE := preload("res://assets/IceTiles/blue_ground.png")
 const BLUE_CORNER_TEXTURE := preload("res://assets/IceTiles/blue_corner.png")
 const BLUE_CENTER_TEXTURE := preload("res://assets/IceTiles/blue_center.png")
@@ -176,9 +178,9 @@ func _generate_column(column_x: float) -> void:
 	# bleibt eine normale, landbare Plattform.
 	if rose_this_column:
 		if surface_kind == SurfaceKind.HALF_SNOW:
-			_add_deadly_front_edge(column, surface_y + BLOCK_SIZE.y * 0.5, BLOCK_SIZE.y * 0.5)
+			_add_knockback_side(column, surface_y + BLOCK_SIZE.y * 0.5, BLOCK_SIZE.y * 0.5)
 		else:
-			_add_deadly_front_edge(column, surface_y, BLOCK_SIZE.y)
+			_add_knockback_side(column, surface_y, BLOCK_SIZE.y)
 
 	# Schneeoberflaechen bleiben frei. Auf den normalen Eisarten duerfen
 	# weiterhin Baeume, Schneehaeufchen und Pinguine stehen.
@@ -235,8 +237,7 @@ func _add_slope_terrain(parent: Node2D, top_y: float, material: AtlasMaterial) -
 	if material == AtlasMaterial.BLUE:
 		slope_body.add_to_group("blue_slide_surface")
 	parent.add_child(slope_body)
-	if material == AtlasMaterial.BLUE:
-		_add_blue_slide_area(slope_body)
+	_add_slope_area(slope_body, material)
 
 	# Nur die sichtbare Hanglinie kollidiert. Ein gefuelltes Dreieck haette an
 	# jedem Segmentanfang eine unsichtbare senkrechte Naht, an der die Robbe
@@ -256,22 +257,42 @@ func _add_slope_terrain(parent: Node2D, top_y: float, material: AtlasMaterial) -
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	slope_body.add_child(sprite)
 
-	# Die Rampe ist nur die oberste Schicht; darunter gelten dieselben
-	# Untergrundregeln wie bei jeder anderen Plattform.
+	# Direkt unter jedem Hang liegt zwingend ein farblich passender Mittelpunkt-
+	# Block. So schliesst das Dreieck sichtbar ab und es entsteht kein freier
+	# oder farblich unpassender Raum unter der Rampe.
 	var bottom_y := floor_y + TERRAIN_DEPTH * BLOCK_SIZE.y
 	var layer_y := top_y + BLOCK_SIZE.y
-	var layer := 1
+	if layer_y < bottom_y:
+		_add_slope_support_block(parent, layer_y, material)
+		layer_y += BLOCK_SIZE.y
+	var layer := 2
 	while layer_y < bottom_y:
 		_add_subsurface_block(parent, layer_y, layer)
 		layer += 1
 		layer_y += BLOCK_SIZE.y
 
 
-func _add_blue_slide_area(parent: Node2D) -> void:
+func _add_slope_support_block(parent: Node2D, top_y: float, material: AtlasMaterial) -> void:
+	# Fuer den direkten Unterbau wird das vollstaendige normale 64x64-Blockbild
+	# verwendet, nicht ein Muster aus einzelnen Mittelpunkt-Tiles.
+	var region := BLUE_FULL_BLOCK_REGION if material == AtlasMaterial.BLUE else BLACK_FULL_BLOCK_REGION
+	_add_ice_block(
+		parent,
+		top_y,
+		region,
+		Vector2(1.5, 1.0),
+		BLOCK_SIZE,
+		Vector2.ZERO,
+		ICE_ATLAS_TEXTURE
+	)
+
+
+func _add_slope_area(parent: Node2D, material: AtlasMaterial) -> void:
 	# Ein schmales Band folgt dem Hang. Anders als Floor-Snap-Kollisionen bleibt
-	# ein Area-Kontakt auch an den Naehten zwischen zwei Segmenten stabil.
+	# ein Area-Kontakt auch an den Naehten zwischen zwei Segmenten stabil. Beide
+	# Materialien nutzen es fuer die Neigung, nur Blau aktiviert Slide/Boost.
 	var area := Area2D.new()
-	area.name = "BlueSlideArea"
+	area.name = "BlueSlideArea" if material == AtlasMaterial.BLUE else "BlackSlopeArea"
 	area.collision_layer = 0
 	area.collision_mask = 1
 	parent.add_child(area)
@@ -284,18 +305,28 @@ func _add_blue_slide_area(parent: Node2D) -> void:
 		Vector2(0.0, 32.0),
 	])
 	area.add_child(band)
-	area.body_entered.connect(_on_blue_slide_body_entered)
-	area.body_exited.connect(_on_blue_slide_body_exited)
+	area.body_entered.connect(_on_slope_body_entered.bind(material))
+	area.body_exited.connect(_on_slope_body_exited.bind(material))
 
 
-func _on_blue_slide_body_entered(body: Node2D) -> void:
-	if body.has_method("_enter_blue_slide_zone"):
-		body.call("_enter_blue_slide_zone")
+func _on_slope_body_entered(body: Node2D, material: AtlasMaterial) -> void:
+	var method_name := (
+		"_enter_blue_slide_zone"
+		if material == AtlasMaterial.BLUE
+		else "_enter_black_slope_zone"
+	)
+	if body.has_method(method_name):
+		body.call(method_name)
 
 
-func _on_blue_slide_body_exited(body: Node2D) -> void:
-	if body.has_method("_exit_blue_slide_zone"):
-		body.call("_exit_blue_slide_zone")
+func _on_slope_body_exited(body: Node2D, material: AtlasMaterial) -> void:
+	var method_name := (
+		"_exit_blue_slide_zone"
+		if material == AtlasMaterial.BLUE
+		else "_exit_black_slope_zone"
+	)
+	if body.has_method(method_name):
+		body.call(method_name)
 
 
 func _random_surface_kind() -> SurfaceKind:
@@ -491,27 +522,27 @@ func _add_ice_block(
 	body.add_child(sprite)
 
 
-func _add_deadly_front_edge(parent: Node2D, top_y: float, edge_height: float) -> void:
-	# Die Zone steht ein wenig vor der linken Wand. So wird sie ausgeloest,
-	# bevor die feste Kollision den Spieler einfach nur stoppt.
-	var danger := Area2D.new()
-	danger.name = "DeadlyFrontEdge"
-	danger.position = Vector2(-8.0, top_y + edge_height * 0.5)
-	danger.collision_layer = 0
-	danger.collision_mask = 1
-	parent.add_child(danger)
+func _add_knockback_side(parent: Node2D, top_y: float, edge_height: float) -> void:
+	# Die Zone steht ein wenig vor der linken Wand. Wer die Oberseite verfehlt,
+	# wird getroffen und nach hinten geschleudert, statt sofort zu sterben.
+	var knockback_area := Area2D.new()
+	knockback_area.name = "KnockbackSide"
+	knockback_area.position = Vector2(-8.0, top_y + edge_height * 0.5)
+	knockback_area.collision_layer = 0
+	knockback_area.collision_mask = 1
+	parent.add_child(knockback_area)
 
 	var shape := RectangleShape2D.new()
 	shape.size = Vector2(16.0, maxf(8.0, edge_height - 8.0))
 	var collision := CollisionShape2D.new()
 	collision.shape = shape
-	danger.add_child(collision)
-	danger.body_entered.connect(_on_deadly_edge_entered)
+	knockback_area.add_child(collision)
+	knockback_area.body_entered.connect(_on_knockback_side_entered)
 
 
-func _on_deadly_edge_entered(body: Node2D) -> void:
-	if body == _player:
-		player_died.emit()
+func _on_knockback_side_entered(body: Node2D) -> void:
+	if body == _player and body.has_method("apply_knockback"):
+		body.call("apply_knockback")
 
 
 func _maybe_add_decoration(parent: Node2D, surface_y: float, chance_percent: int) -> void:
