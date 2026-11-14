@@ -2,6 +2,8 @@ extends CharacterBody2D
 
 signal bounced
 signal slide_boosted
+signal slide_qte_started
+signal slide_qte_ended
 signal knocked_back
 
 
@@ -57,7 +59,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
-	var on_blue_slide := is_on_floor() and _blue_slide_zone_count > 0
+	var on_blue_slide := is_on_blue_slide_zone()
 
 	# Add the gravity.
 	if not is_on_floor():
@@ -95,11 +97,29 @@ func _physics_process(delta: float) -> void:
 
 
 func _enter_blue_slide_zone() -> void:
+	if _blue_slide_zone_count == 0 and not _blue_boost_used:
+		slide_qte_started.emit()
 	_blue_slide_zone_count += 1
-
 
 func _exit_blue_slide_zone() -> void:
 	_blue_slide_zone_count = maxi(0, _blue_slide_zone_count - 1)
+	if _blue_slide_zone_count == 0:
+		slide_qte_ended.emit()
+
+
+func is_on_blue_slide_zone() -> bool:
+	# If physics is intentionally paused (for example while a scene/test is
+	# being previewed), the overlap count is the only reliable state available.
+	# During normal gameplay require the body to still be grounded as well, so a
+	# missed area-exit signal can never leave the QTE in slow motion mid-air.
+	if process_mode == Node.PROCESS_MODE_DISABLED:
+		return _blue_slide_zone_count > 0
+	if _blue_slide_zone_count <= 0 or not is_on_floor():
+		return false
+	# A stale Area2D overlap can survive a bad landing for one frame. A real
+	# slope has a visibly angled floor normal; a flat landing must end the QTE.
+	var floor_normal := get_floor_normal()
+	return absf(floor_normal.x) > 0.15 and floor_normal.y < -0.55
 
 func _enter_black_slope_zone() -> void:
 	_black_slope_zone_count += 1

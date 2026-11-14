@@ -1,6 +1,7 @@
 extends Node2D
 
 signal player_died
+signal clock_collected
 
 ## Endloser, aber spielbarer Level-Generator.
 ## Alle wichtigen Werte stehen hier oben, damit ihr sie beim Hackathon schnell tunen koennt.
@@ -42,11 +43,12 @@ const BLUE_SLOPE_TEXTURE := preload("res://assets/IceTiles/blue_slope.png")
 const BLACK_SLOPE_TEXTURE := preload("res://assets/IceTiles/black_slope.png")
 const ATLAS_ICE_CAP_REGION := Rect2(130.0, 0.0, 28.0, 18.0)
 const PENGUIN_TEXTURE := preload("res://assets/SnowTileset/Animations/penguinAnimationsPng.png")
+const CLOCK_TEXTURE := preload("res://assets/Clock.png")
 const TREE_REGIONS := [
 	Rect2(613.0, 26.0, 24.0, 38.0),
 	Rect2(658.0, 21.0, 31.0, 43.0),
 ]
-const TREE_SCALES := [1.65, 2.4, 3.25]
+const TREE_SCALES := [2.2, 3.2, 4.4]
 const TREE_NAMES := ["TreeSmall", "TreeMedium", "TreeBig"]
 const SMALL_PROP_REGIONS := [
 	Rect2(611.0, 144.0, 8.0, 16.0), # Eisnadel
@@ -85,6 +87,8 @@ var _last_surface_y := 520.0
 var _needs_left_edge := false
 var _slide_segments_remaining := 0
 var _slide_material := AtlasMaterial.BLUE
+var _last_surface_kind := -1
+var _same_surface_run := 0
 
 
 func _ready() -> void:
@@ -117,10 +121,12 @@ func _generate_column(column_x: float) -> void:
 
 	# Der Anfang ist immer flach. Danach entstehen mehrere Hoehenebenen.
 	if column_x < SAFE_START_END:
-		var start_surface := _random_surface_kind()
-		# Die zwei garantierten Figuren brauchen nach den Regeln normales Eis.
-		if is_equal_approx(column_x, 384.0) or is_equal_approx(column_x, 672.0):
-			start_surface = SurfaceKind.NORMAL_ICE
+		var needs_decoration := (
+			is_equal_approx(column_x, 384.0)
+			or is_equal_approx(column_x, 672.0)
+		)
+		var start_surface := _random_surface_kind(needs_decoration)
+		# Die zwei garantierten Figuren bekommen immer eine dekorierbare Eisart.
 		_add_terrain_column(column, floor_y, start_surface)
 		_add_guaranteed_start_decoration(column, column_x)
 		_last_terrain_column = column
@@ -153,8 +159,10 @@ func _generate_column(column_x: float) -> void:
 		and _surface_level >= 4
 		and _rng.randi_range(0, 99) < roundi(lerpf(SLIDE_CHANCE_START, SLIDE_CHANCE_MAX, difficulty))
 	):
-		_slide_segments_remaining = _rng.randi_range(4, mini(8, _surface_level))
+		# Auch Rampen folgen der Drei-gleiche-Tiles-Regel.
+		_slide_segments_remaining = _rng.randi_range(2, mini(3, _surface_level))
 		_slide_material = AtlasMaterial.BLUE if _rng.randi_range(0, 99) < 70 else AtlasMaterial.BLACK
+		_reset_surface_run()
 		_generate_slide_segment(column)
 		return
 
@@ -171,6 +179,7 @@ func _generate_column(column_x: float) -> void:
 		_gap_columns = _rng.randi_range(0, max_gap_tail)
 		_safe_columns = 2
 		_needs_left_edge = _gap_columns == 0
+		_reset_surface_run()
 		return
 
 	var previous_surface_y := _last_surface_y
@@ -360,19 +369,48 @@ func _on_slope_body_exited(body: Node2D, material: AtlasMaterial) -> void:
 		body.call(method_name)
 
 
-func _random_surface_kind() -> SurfaceKind:
+func _random_surface_kind(decoration_safe: bool = false) -> SurfaceKind:
 	# Pro Spalte neu entscheiden: Schnee und Eis wirken dadurch natuerlich
-	# durchmischt, ohne verbotene Schnee-Tiles in den Untergrund zu setzen.
+	# durchmischt. Nach drei gleichen Oberflaechen wird zwingend eine andere
+	# gewaehlt, damit horizontal nie vier gleiche Tiles nebeneinander stehen.
 	var surface_roll := _rng.randi_range(0, 99)
+	var surface_kind: SurfaceKind
 	if surface_roll < 18:
-		return SurfaceKind.HALF_SNOW
-	if surface_roll < 36:
-		return SurfaceKind.FULL_SNOW
-	if surface_roll < 56:
-		return SurfaceKind.BLUE_ICE
-	if surface_roll < 70:
-		return SurfaceKind.BLACK_ICE
-	return SurfaceKind.NORMAL_ICE
+		surface_kind = SurfaceKind.HALF_SNOW
+	elif surface_roll < 36:
+		surface_kind = SurfaceKind.FULL_SNOW
+	elif surface_roll < 56:
+		surface_kind = SurfaceKind.BLUE_ICE
+	elif surface_roll < 70:
+		surface_kind = SurfaceKind.BLACK_ICE
+	else:
+		surface_kind = SurfaceKind.NORMAL_ICE
+
+	var allowed_kinds: Array[SurfaceKind] = [
+		SurfaceKind.NORMAL_ICE,
+		SurfaceKind.BLUE_ICE,
+		SurfaceKind.BLACK_ICE,
+	]
+	if not decoration_safe:
+		allowed_kinds.append(SurfaceKind.HALF_SNOW)
+		allowed_kinds.append(SurfaceKind.FULL_SNOW)
+	if surface_kind not in allowed_kinds:
+		surface_kind = allowed_kinds[_rng.randi_range(0, allowed_kinds.size() - 1)]
+	if surface_kind == _last_surface_kind and _same_surface_run >= 3:
+		allowed_kinds.erase(surface_kind)
+		surface_kind = allowed_kinds[_rng.randi_range(0, allowed_kinds.size() - 1)]
+
+	if surface_kind == _last_surface_kind:
+		_same_surface_run += 1
+	else:
+		_last_surface_kind = surface_kind
+		_same_surface_run = 1
+	return surface_kind
+
+
+func _reset_surface_run() -> void:
+	_last_surface_kind = -1
+	_same_surface_run = 0
 
 
 func _surface_allows_decoration(surface_kind: SurfaceKind) -> bool:
@@ -587,11 +625,13 @@ func _maybe_add_decoration(parent: Node2D, surface_y: float, chance_percent: int
 		return
 
 	var decoration_roll := _rng.randi_range(0, 99)
-	if decoration_roll < 38:
+	if decoration_roll < 10:
+		_add_clock_item(parent, surface_y)
+	elif decoration_roll < 42:
 		_add_random_tree(parent, surface_y)
-	elif decoration_roll < 68:
+	elif decoration_roll < 70:
 		_add_penguin_decoration(parent, surface_y)
-	elif decoration_roll < 96:
+	elif decoration_roll < 97:
 		_add_small_prop(parent, surface_y)
 	else:
 		# Diese Kappe zeigt im Atlas nach oben und wird daher nur auf einer
@@ -639,6 +679,39 @@ func _add_small_prop(parent: Node2D, surface_y: float) -> void:
 	)
 
 
+func _add_clock_item(parent: Node2D, surface_y: float) -> void:
+	var clock_area := Area2D.new()
+	clock_area.name = "ClockItem"
+	clock_area.collision_layer = 0
+	clock_area.collision_mask = 1
+	clock_area.position = Vector2(48.0, surface_y - 38.0)
+	parent.add_child(clock_area)
+
+	var sprite := Sprite2D.new()
+	sprite.texture = CLOCK_TEXTURE
+	sprite.scale = Vector2(0.07, 0.07)
+	sprite.z_index = 4
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	clock_area.add_child(sprite)
+
+	var collision := CollisionShape2D.new()
+	var shape := CircleShape2D.new()
+	shape.radius = 27.0
+	collision.shape = shape
+	clock_area.add_child(collision)
+	clock_area.body_entered.connect(_on_clock_body_entered.bind(clock_area))
+
+	var bob_tween := clock_area.create_tween().set_loops()
+	bob_tween.tween_property(clock_area, "position:y", surface_y - 45.0, 0.55)
+	bob_tween.tween_property(clock_area, "position:y", surface_y - 38.0, 0.55)
+
+
+func _on_clock_body_entered(body: Node2D, clock_area: Area2D) -> void:
+	if body == _player:
+		clock_collected.emit()
+		clock_area.queue_free()
+
+
 func _add_penguin_decoration(parent: Node2D, surface_y: float) -> void:
 	# Gelegentliche Paare beleben die langen Plattformen, bleiben aber rein
 	# visuell und veraendern weder Sprungweg noch Kollision.
@@ -661,7 +734,7 @@ func _add_guaranteed_start_decoration(parent: Node2D, column_x: float) -> void:
 	if is_equal_approx(column_x, 384.0):
 		_add_penguin(parent, floor_y)
 	elif is_equal_approx(column_x, 672.0):
-		_add_decoration_sprite(parent, ICE_TEXTURE, TREE_REGIONS[0], floor_y, Vector2(2.7, 2.7))
+		_add_decoration_sprite(parent, ICE_TEXTURE, TREE_REGIONS[0], floor_y, Vector2(3.8, 3.8))
 
 
 func _add_penguin(
